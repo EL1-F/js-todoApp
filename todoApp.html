@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css" integrity="sha512-KfkfwYDsLkIlwQp6LFnl8zNdLGxu9YAA1QvwINks4PhcElQSvqcyVLLD9aMhXd13uQjoXtEKNosOWaZqXgel0g==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+        .dropdown-toggle::after{
+            display: none;
+        }
+
+        .task{
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .task label.checked{
+            text-decoration: line-through;
+        }
+
+        .controls{
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .filters span.active{
+            color: rgb(186, 186, 246);
+        }
+
+        .filters span{
+            margin-right: 15px;
+            font-size: 15px;
+            column-rule-color:grey;
+            cursor: pointer;
+            
+        }
+        .filters span.card-header{
+            background-color: rgb(86, 119, 180);
+            border-radius: 10px;
+        }
+    </style>
+    <title>Document</title>
+</head>
+<body>
+
+    <div class="container">
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        Todo App
+                    </div>
+
+                    <div class="card-body">
+                        <form>
+                            <div class="input-group">
+                                <input type="text"id="txtTaskName" class="form-control">
+                                <button type="submit" class="btn btn-primary" id="btnAddNewTask">Ekle</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                <div class="card mt-3">                 
+                    <div class="card-header controls">
+                        <div class="filters">
+                            <span class="card-header active" id="all">Hepsi</span>
+                            <span id="pending">Yapılacak</span>
+                            <span id="completed">Tamamlananlar</span>
+                        </div>
+                        <button id="btnClear" class="btn btn-danger btn-sm float-end">Temizle</button>
+                    </div>
+
+                    <ul id="task-list" class="list-group list-group-flush">
+                       
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p" crossorigin="anonymous"></script>
+    <script>
+
+        //liste elemanlarının doldurulduğu kısın
+
+        let gorevListesi = [ ];
+
+        if (localStorage.getItem("gorevListesi")!==null) {
+            gorevListesi =JSON.parse(localStorage.getItem("gorevListesi"));
+        }
+
+        let editId;
+        let isEditTask = false;
+
+        const taskInput = document.querySelector("#txtTaskName");
+        const filters = document.querySelectorAll(".filters span");
+
+        displayTasks(document.querySelector("span.active").id);
+        
+
+        function displayTasks(filter) {
+
+            let ul = document.getElementById("task-list");
+            ul.innerHTML= "";
+
+            if (gorevListesi.length == 0) {
+                ul.innerHTML="<p class='p-3 m-0'>Görev listeniz boş.</p>"
+            }else{
+                for(let gorev of gorevListesi){
+
+                    let completed = gorev.durum == "completed" ? "checked": "";
+
+                    if (filter ==gorev.durum || filter == "all") {
+
+                        let li = `
+
+                        <li class="task list-group-item">
+                            <div class="from-check">
+                                <input type="checkbox" onclick="updateStatus(this)" id="${gorev.id}" class="form-check-input" ${completed}>
+                                <label for="${gorev.id}" class="form-check-label ${completed}">${gorev.gorevAdi}</label>
+                            </div>
+                            <div class="dropdown">
+                                <button class="btn btn-link dropdown-toggle" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="fa-solid fa-ellipsis"></i>
+                                </button>
+                                <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1"> 
+                                    <li><a onclick="deleteTask(${gorev.id})" class="dropdown-item" href="#"> <i class="fa-solid fa-trash"></i> Sil</a></li>
+                                    <li><a onclick='editTask(${gorev.id}, "${gorev.gorevAdi}")' class="dropdown-item" href="#"> <i class="fa-solid fa-pen"></i> Düzenle</a></li>
+                                </ul>
+                            </div>
+                        </li>
+
+                    `;
+                        ul.insertAdjacentHTML("beforeEnd",li);
+                    }
+
+                };
+            }
+             //console.log(gorevListesi);
+
+             localStorage.setItem("gorevListesi", JSON.stringify(gorevListesi));
+        }
+
+
+         //ekleme yapılması
+
+         let btnEkle = document.querySelector("#btnAddNewTask");
+         btnEkle.addEventListener("click", newTask);
+         btnEkle.addEventListener("keypress",function(){
+            if (event.key == "Enter") {
+                btnEkle.click();
+            }
+         });
+
+         function newTask(event){
+
+            
+
+
+            if (taskInput.value == "") {
+                alert("Görev giriniz.")
+            }else{
+                
+                if (! isEditTask) {
+                    //ekleme
+                    let newId=gorevListesi.length+1;
+
+                    for(let gorev of gorevListesi){
+                        if (newId == gorev.id) {
+                            newId +=1;
+                        }
+                    }
+
+                    gorevListesi.push({"id": newId, "gorevAdi": taskInput.value, "durum": "pending"});
+                    
+                }else{
+                    //güncelleme
+
+                    for(let gorev of gorevListesi){
+                        if (gorev.id ==editId) {
+                            gorev.gorevAdi = taskInput.value;
+                        }
+
+                        isEditTask = false;
+                    }
+                }
+
+                
+                taskInput.value = "";
+                //console.log(gorevListesi);
+
+                displayTasks(document.querySelector("span.active").id);
+                //localStorage.setItem("gorevListesi", JSON.stringify(gorevListesi));
+
+            }
+
+            //event.preventDefault(); //sayfayı yenilememsi için notmal davranışını kapatıyoruz
+         }
+
+
+         //temizleme yapılması
+
+         let btnTemizle = document.querySelector("#btnClear");
+         btnTemizle.addEventListener("click", clear);
+
+         
+         function clear(event){
+            
+            gorevListesi.splice(0,gorevListesi.length);
+            displayTasks(document.querySelector("span.active").id);
+            //event.preventDefault(); //sayfayı yenilememsi için notmal davranışını kapatıyoruz
+
+         }
+
+
+         //seçileen elemanı silme
+
+         function deleteTask(id) {
+            let deletedId;
+
+            deletedId = gorevListesi.findIndex(function(gorev){
+                return gorev.id == id;
+            });
+
+
+           // deletedId = gorevListesi.findIndex(gorev => gorev.id == id);
+
+            gorevListesi.splice(deletedId,1);
+            displayTasks(document.querySelector("span.active").id);
+         }
+
+
+
+         //seçilen elemanının düzenlenmesi
+
+         function editTask(taskId, taskName) {
+            editId = taskId;
+            isEditTask = true;
+            taskInput.value = taskName;
+            taskInput.focus();
+            taskInput.classList.add("active");
+         }
+
+
+         //yapılan görevlerin üzerini çizme
+
+         function updateStatus(selectedTask) {
+
+            let durum;
+
+            if (selectedTask.checked) {
+                selectedTask.nextElementSibling.classList.add("checked");
+                durum= "completed"
+            }else{
+                selectedTask.nextElementSibling.classList.remove("checked");
+                durum= "pending"
+            }
+
+
+            for(let gorev of gorevListesi){
+                if (gorev.id == selectedTask.id) {
+                    gorev.durum = durum;
+                }
+            }
+
+            //console.log(gorevListesi);
+            
+            displayTasks(document.querySelector("span.active").id);
+         }
+
+
+         //durumuna göre kategorize etme
+
+         for(let span of filters){
+            span.addEventListener("click", function() {    
+                document.querySelector("span.active").classList.remove("active");
+                span.classList.add("active");
+
+                document.querySelector("span.card-header").classList.remove("card-header");
+                span.classList.add("card-header");
+
+                displayTasks(span.id);
+            })
+         }
+
+
+
+    </script>
+</body>
+</html>
